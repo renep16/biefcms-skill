@@ -33,6 +33,8 @@ credenciales: guía a la persona por estos pasos y espera.
    | `write:contenido` | Crear, actualizar, publicar, despublicar, papelera, importar medios |
    | `write:estructura` | Crear y modificar tipologías. Solo sirve si la organización es autogestionada |
    | `write:sincronizacion` | Leer las fuentes externas y ajustar su mapeo. Solo con autogestión |
+   | `write:conexionWeb` | URL pública, URL de vista previa y orígenes CORS. Solo con autogestión |
+   | `write:definirFormularios` | Crear y editar formularios. No leer sus envíos |
    | `write:formularios` | Enviar formularios desde la web pública. **No se usa por MCP** |
 
    Pide el mínimo que haga falta para lo que vais a hacer, y dilo así: una clave es una llave a
@@ -102,12 +104,21 @@ que describe la imagen a quien no puede verla, y además es por donde se busca e
 esquema real de esa organización. Las imágenes del CDN van en `<img src="{url}?width=800&quality=80">`
 con su `alt`, **nunca en next/image**: el CDN ya optimiza, y volver a optimizar cuesta dinero.
 
-**8. Lo que tiene que hacer una persona para que la web funcione**, y tú no puedes: la URL
-pública, la URL de vista previa y los orígenes de CORS, en **Desarrolladores → Conexión con la
-web**; los formularios, en **Formularios**; el dominio propio, BIEF. Dilo al entregar, con su
-pantalla, en vez de dejar la web a medias sin avisar.
+**8. Al desplegar, conecta la web.** Con `write:conexionWeb`, `actualizar_conexion_web` fija la
+URL pública, la de vista previa y los orígenes permitidos. Es el paso que falta cuando la web
+compila pero sale vacía: si lee el CMS desde el navegador y su origen no está en la lista, el
+navegador bloquea la respuesta y no hay ningún error que mirar. Si lee desde su propio servidor,
+la lista no hace falta. Pon la URL de producción, no la de un despliegue de vista previa.
 
-**9. Antes de dar por terminado**, repasa en voz alta: qué tipologías quedaron, qué está
+**9. El formulario de contacto lo montas tú.** Con `write:definirFormularios`,
+`guardar_formulario` crea o edita uno por su slug, con sus campos y a qué correos avisa. Los
+mensajes que reciba, y borrar el formulario, se quedan en el panel: son de quien los mandó.
+
+**10. Lo que sigue siendo de una persona**, y hay que decírselo al entregar, con su pantalla:
+las claves de Turnstile y el secreto de vista previa, en *Desarrolladores → Conexión con la web*;
+leer los mensajes de un formulario, en *Formularios → Bandeja*; el dominio propio, BIEF.
+
+**11. Antes de dar por terminado**, repasa en voz alta: qué tipologías quedaron, qué está
 publicado y qué sigue en borrador, qué claves hacen falta en producción y con qué alcance, y qué
 pasos de pantalla quedan pendientes.
 
@@ -119,6 +130,8 @@ pasos de pantalla quedan pendientes.
 - **Antes de despublicar, reemplazar o tirar algo, mira `usado_en`.** Dice cuántas páginas
   publicadas dependen de ello, y cuenta las que no puede nombrar en vez de decir que no hay
   ninguna.
+- **Publicar o tirar muchos a la vez tiene su herramienta**: `accion_masiva`, hasta cien de una
+  tipología. Mira siempre `fallidos`, y con «papelera» enseña primero qué se va a llevar.
 - **Antes de recrear algo que «ya no está», mira `listar_papelera`.** Si sale ahí, se recupera
   entero desde el panel y recrearlo dejaría dos. Y si lo que falta es un texto de una versión
   vieja, `listar_versiones` y `obtener_version` lo leen para volver a escribirlo a mano.
@@ -184,8 +197,9 @@ Los errores traen `{ error: { codigo, mensaje, detalles } }`. El `codigo` dice q
 
 ## Lo que no puedes hacer desde aquí
 
-Borrar una tipología, crear o revocar claves, tocar webhooks, la conexión con la web, ajustes,
-equipo o dominios, crear o borrar una sincronización, cambiar su URL o su credencial o dispararla, exportar o importar la organización, enviar a la papelera el
+Borrar una tipología, crear o revocar claves, tocar webhooks, ajustes, equipo o dominios, crear o
+borrar una sincronización, cambiar su URL o su credencial o dispararla, poner las claves de
+Turnstile o regenerar el secreto de vista previa, leer los mensajes de un formulario o borrarlo, exportar o importar la organización, enviar a la papelera el
 registro único de un singleton, subir un archivo desde el disco, restaurar versiones, restaurar
 de la papelera o vaciarla. Para cada una, `obtener_guia` dice quién lo hace y en qué pantalla:
 **guía a la persona por su panel** con la ruta y los pasos. Si la organización no es
