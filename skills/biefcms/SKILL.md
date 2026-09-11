@@ -35,6 +35,8 @@ credenciales: guía a la persona por estos pasos y espera.
    | `write:sincronizacion` | Leer las fuentes externas y ajustar su mapeo. Solo con autogestión |
    | `write:conexionWeb` | URL pública, URL de vista previa y orígenes CORS. Solo con autogestión |
    | `write:definirFormularios` | Crear y editar formularios. No leer sus envíos |
+   | `write:medios` | Subir archivos, organizar la biblioteca en carpetas y escribir el `alt` |
+   | `write:webhooks` | Crear y ajustar webhooks salientes, y ver por qué falló una entrega. Solo con autogestión |
    | `write:formularios` | Enviar formularios desde la web pública. **No se usa por MCP** |
 
    Pide el mínimo que haga falta para lo que vais a hacer, y dilo así: una clave es una llave a
@@ -95,10 +97,24 @@ migrarlos después, no.
 `guardar_singleton`. Todo queda en borrador. Enséñale a la persona lo que quedó y que decida ella
 qué publicar: `publicar_registro` y `publicar_singleton` son pasos aparte, a propósito.
 
-**6. Las imágenes entran por URL.** `importar_medio` descarga desde una dirección pública y sube
-el archivo al CDN de la organización; devuelve el `idMedio` que va en un campo de tipo medio.
-Subir un archivo del disco es del panel, en **Medios**. Pon siempre el texto alternativo: es lo
-que describe la imagen a quien no puede verla, y además es por donde se busca en la biblioteca.
+**6. Las imágenes, por URL o desde el disco.** Si el archivo ya está en una dirección pública,
+`importar_medio` lo descarga y lo sube al CDN en un paso. Si está en el ordenador de la persona,
+con `write:medios` son dos pasos y un PUT en medio:
+
+1. `preparar_subida` con el nombre, el tipo MIME y el tamaño **medido** del archivo; devuelve una
+   `urlSubida` firmada que caduca en quince minutos.
+2. `curl -X PUT --upload-file "<archivo>" -H "Content-Type: <tipoMime>" "<urlSubida>"`.
+3. `confirmar_subida` con el `idMedio`. **Hasta aquí el archivo no existe para nadie**: está
+   subido pero invisible, y se purga solo a las veinticuatro horas.
+
+El tipo y el tamaño que anuncias en el paso 1 tienen que coincidir exactos con lo que sube en el
+2, o el 3 borra lo subido y falla. Si no puedes hacer un PUT desde donde estás, no busques otro
+camino: usa `importar_medio` o dile a la persona que lo suelte en **Medios**.
+
+Después, `actualizar_medio` con el texto alternativo: describe la imagen a quien no puede verla y
+es por donde se busca en la biblioteca. `estado_biblioteca` dice cuánto espacio queda antes de
+empezar una tanda, y `guardar_carpeta` con `mover_medios` la ordena --mover no cambia ninguna URL
+publicada, porque la carpeta no está en la ruta del archivo--.
 
 **7. La web se programa con lo generado.** `obtener_cliente_ts` y `obtener_tipos_ts` salen del
 esquema real de esa organización. Las imágenes del CDN van en `<img src="{url}?width=800&quality=80">`
@@ -109,6 +125,16 @@ URL pública, la de vista previa y los orígenes permitidos. Es el paso que falt
 compila pero sale vacía: si lee el CMS desde el navegador y su origen no está en la lista, el
 navegador bloquea la respuesta y no hay ningún error que mirar. Si lee desde su propio servidor,
 la lista no hace falta. Pon la URL de producción, no la de un despliegue de vista previa.
+
+**8 bis. Si la web es estática, avísala cuando cambie el contenido.** Con `write:webhooks`,
+`crear_webhook` registra un destino para `registro.publicado` y compañía, y devuelve el secreto de
+firma **una sola vez**. Escríbelo en las variables de entorno del proyecto, en el archivo que no
+va a git, y **dile a la persona que tiene que estar también en las del hosting**: el CMS dispara
+contra la URL pública, así que quien verifica la firma es el código desplegado y con el `.env` de
+local no basta. Cuando la web no se actualice después de publicar, `listar_webhooks` es dónde
+mirar: primero `enCola`, porque el reparto lo hace un worker que pasa cada minuto, y después el
+`codigoHttp` y el `error` de las últimas entregas. `reenviar_entrega` repite la que falló con su
+carga original. Borrar el webhook y regenerar su secreto se quedan en el panel.
 
 **9. El formulario de contacto lo montas tú.** Con `write:definirFormularios`,
 `guardar_formulario` crea o edita uno por su slug, con sus campos y a qué correos avisa. Los
@@ -197,11 +223,12 @@ Los errores traen `{ error: { codigo, mensaje, detalles } }`. El `codigo` dice q
 
 ## Lo que no puedes hacer desde aquí
 
-Borrar una tipología, crear o revocar claves, tocar webhooks, ajustes, equipo o dominios, crear o
-borrar una sincronización, cambiar su URL o su credencial o dispararla, poner las claves de
-Turnstile o regenerar el secreto de vista previa, leer los mensajes de un formulario o borrarlo, exportar o importar la organización, enviar a la papelera el
-registro único de un singleton, subir un archivo desde el disco, restaurar versiones, restaurar
-de la papelera o vaciarla. Para cada una, `obtener_guia` dice quién lo hace y en qué pantalla:
+Borrar una tipología, crear o revocar claves, ajustes, equipo o dominios, crear o borrar una
+sincronización, cambiar su URL o su credencial o dispararla, poner las claves de Turnstile o
+regenerar el secreto de vista previa, borrar un webhook o regenerar su secreto de firma, leer los
+mensajes de un formulario o borrarlo, borrar un medio o una carpeta, exportar o importar la
+organización, enviar a la papelera el registro único de un singleton, restaurar versiones,
+restaurar de la papelera o vaciarla. Para cada una, `obtener_guia` dice quién lo hace y en qué pantalla:
 **guía a la persona por su panel** con la ruta y los pasos. Si la organización no es
 autogestionada, varias de esas las hace BIEF y hay que pedírselas.
 
@@ -212,6 +239,9 @@ Y nunca lo simules con un rodeo:
 - No vacíes de contenido un registro único ni lo despubliques para simular que lo borraste:
   sigue ahí, y quitarlo de en medio se hace desde la papelera del panel.
 - No sobrescribas un medio para simular que lo borraste.
+- No crees un webhook nuevo porque se haya perdido el secreto del que ya hay: el viejo sigue
+  disparando y el receptor acabaría recibiendo dos avisos por cada cosa que pasa. El secreto se
+  regenera sobre el mismo webhook, en el panel.
 - No pidas nunca a la persona que te pegue una clave, una contraseña ni un secreto para hacer
   algo que aquí no puedes. Si hace falta una credencial nueva, la crea ella en su panel.
 - No hagas a medias lo que no puedes hacer entero. Di qué falta, quién lo hace y dónde.
