@@ -170,6 +170,10 @@ pasos de pantalla quedan pendientes.
   responde «no encontrado» ahí, y uno de singleton responde «no encontrado» en `crear_registro`.
   Estas escrituras existen solo por MCP: el REST y el `cliente.ts` generado leen los registros
   únicos pero no los escriben.
+- **Actualizar cambia solo lo que mandes.** `actualizar_registro`, `guardar_singleton` y
+  `guardar_traduccion` mezclan lo que mandas en `datos` con lo guardado: un campo que no mandas se
+  queda como estaba, y para vaciar uno hay que mandarlo vacío (`""` o `null`). Manda solo lo que
+  cambia.
 - Un borrador puede estar incompleto: los campos requeridos se exigen al publicar, y es
   `publicar_registro` quien responde entonces un error de validación con el campo que falta.
 - Si actualizas un registro con el campo `slug` vacío, el slug de borrador se rederiva del
@@ -178,6 +182,26 @@ pasos de pantalla quedan pendientes.
   cada corrida. No los edites. `obtener_guia` dice cuáles son, tipología por tipología.
 - Por defecto solo sale lo publicado. Pedir lo no publicado exige `read:borrador`, y se usa desde
   el servidor de la web, para la vista previa, nunca desde el navegador de un visitante.
+
+## Una organización en varios idiomas
+
+Si `obtener_esquema` trae `idiomas`, la organización publica en más de un idioma. Si no lo trae,
+no tiene traducciones y nada de esta sección aplica: esas herramientas ni aparecen.
+
+- **Cada registro se escribe en el idioma principal**, con las herramientas de siempre. Una
+  **traducción** es una copia aparte de solo los campos con `traducible: true`, con su propio
+  borrador y su propia publicación.
+- **Lo que falta en una traducción se sirve en el principal**, campo a campo. No copies a la
+  traducción lo que no se traduce: un campo vacío ya muestra el del principal.
+- **Para traducir**: `obtener_traduccion` trae la traducción con el principal al lado y dice qué
+  campos cambiaron desde la última vez; tradúcelos tú y guárdalos con `guardar_traduccion`, que
+  deja la traducción en **borrador**. `publicar_traduccion` es un paso aparte, solo se ve con el
+  principal publicado, y lo decide una persona, como publicar un registro.
+  `despublicar_traduccion` la retira de la web sin borrarla.
+- **Para leer en un idioma**, `idioma` en `listar_registros`, `obtener_registro` y
+  `obtener_singleton`. Cada registro dice en qué idioma salió y en cuáles está publicado.
+- **Nunca dupliques un registro para hacer otro idioma**: rompería la dirección, el sitemap y los
+  enlaces entre idiomas. Y descartar una traducción del todo se hace en el panel.
 
 ## Mapear una fuente externa
 
@@ -228,7 +252,7 @@ sincronización, cambiar su URL o su credencial o dispararla, poner las claves d
 regenerar el secreto de vista previa, borrar un webhook o regenerar su secreto de firma, leer los
 mensajes de un formulario o borrarlo, borrar un medio o una carpeta, exportar o importar la
 organización, enviar a la papelera el registro único de un singleton, restaurar versiones,
-restaurar de la papelera o vaciarla. Para cada una, `obtener_guia` dice quién lo hace y en qué pantalla:
+restaurar de la papelera o vaciarla, y descartar una traducción. Para cada una, `obtener_guia` dice quién lo hace y en qué pantalla:
 **guía a la persona por su panel** con la ruta y los pasos. Si la organización no es
 autogestionada, varias de esas las hace BIEF y hay que pedírselas.
 
